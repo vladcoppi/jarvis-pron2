@@ -1,0 +1,43 @@
+workflows:
+  native-android:
+    name: Jarvis Offline - Debug APK
+    max_build_duration: 60
+    instance_type: linux_x2
+
+    environment:
+      java: 17
+
+    scripts:
+      - name: Check Android project structure
+        script: |
+          echo "Repository root: $CM_BUILD_DIR"
+          if [ ! -f "$CM_BUILD_DIR/gradlew" ]; then
+            echo "ERROR: gradlew was not found in the repository root. Upload the actual Android Gradle project, including gradlew, settings.gradle(.kts), and the app module."
+            exit 1
+          fi
+          if [ ! -f "$CM_BUILD_DIR/settings.gradle" ] && [ ! -f "$CM_BUILD_DIR/settings.gradle.kts" ]; then
+            echo "ERROR: settings.gradle or settings.gradle.kts was not found in the repository root. This does not look like a standard Android Gradle project."
+            exit 1
+          fi
+
+      - name: Make Gradle wrapper executable
+        script: chmod +x ./gradlew
+
+      - name: Set Android SDK location
+        script: |
+          if [ -n "$ANDROID_SDK_ROOT" ]; then
+            echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+          elif [ -n "$ANDROID_HOME" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > "$CM_BUILD_DIR/local.properties"
+          else
+            echo "Android SDK path is not available in the build environment."
+            exit 1
+          fi
+
+      - name: Build installable debug APK
+        script: ./gradlew --no-daemon --stacktrace assembleDebug
+
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - '**/build/outputs/apk/debug/*.apk'
+      - '**/build/reports/**'
